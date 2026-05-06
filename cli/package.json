@@ -1,6 +1,6 @@
 {
   "name": "@llm-atlas/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Auto-generate and maintain a raw knowledge layer for LLMs",
   "keywords": [
     "llm",
@@ -42,11 +42,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm test",
-    "version": "git add -A",
-    "postversion": "git push && git push --tags",
-    "release:patch": "npm version patch -m \"chore: release v%s\"",
-    "release:minor": "npm version minor -m \"chore: release v%s\"",
-    "release:major": "npm version major -m \"chore: release v%s\""
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "commander": "^12.0.0",

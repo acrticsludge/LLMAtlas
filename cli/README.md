@@ -60,16 +60,16 @@ Edit `.raw/config.json`:
 
 ```bash
 # Bump version, tag, and push (GitHub Action auto-publishes to npm)
-npm run release:patch   # 0.1.0 → 0.1.1
-npm run release:minor   # 0.1.0 → 0.2.0
-npm run release:major   # 0.1.0 → 1.0.0
+npm run release patch    # 0.1.0 → 0.1.1
+npm run release minor    # 0.1.0 → 0.2.0
+npm run release major    # 0.1.0 → 1.0.0
 ```
 
-Each release command:
+The release script:
 1. Bumps version in `package.json`
-2. Commits with message `chore: release v<version>`
-3. Creates a git tag `v<version>`
-4. Pushes commit and tag
+2. Commits with `chore: release v<version>`
+3. Creates git tag `v<version>`
+4. Pushes commit + tags to origin
 
 When a `v*` tag is pushed, the GitHub Action (`.github/workflows/publish.yml`):
 - Runs tests on the tag
