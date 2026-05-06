@@ -1,16 +1,4 @@
-# LLMAtlas — npm Publish Workflow
-#
-# Trigger: Publish a GitHub Release → tests pass → publish to npm
-#
-# Usage:
-#   1. Bump locally:  cd cli && node scripts/release.mjs patch
-#   2. Go to GitHub → Releases → Draft a new release from the tag
-#   3. Publish it → this workflow runs tests and publishes to npm
-#
-# Required secrets:
-#   NPM_TOKEN — npm automation token with publish permissions
-
-name: Publish
+name: Publish to npm
 
 on:
   release:
@@ -21,44 +9,34 @@ on:
         description: 'Git tag to publish (e.g. v0.1.1)'
         required: true
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.release.tag_name || github.event.inputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: 'https://registry.npmjs.org'
-          cache: 'npm'
-          cache-dependency-path: cli/package-lock.json
+          node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
-        working-directory: cli
-        run: npm ci
+        run: cd cli && npm ci
+
+      - name: Test
+        run: cd cli && npm test
 
       - name: Build
-        working-directory: cli
-        run: npm run build
-
-      - name: Run tests
-        working-directory: cli
-        run: npm test
-
-      - name: Set npm auth token
-        working-directory: cli
-        run: npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
+        run: cd cli && npm run build
 
       - name: Publish to npm
-        working-directory: cli
-        run: npm publish
-
-      - name: Verify publication
-        run: |
-          VERSION=$(node -p "require('./cli/package.json').version")
-          echo "Published @llm-atlas/cli@$VERSION"
-          npm view @llm-atlas/cli@$VERSION version
+        run: cd cli && npm publish
