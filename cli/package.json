@@ -2,17 +2,25 @@
   "name": "@llm-atlas/cli",
   "version": "0.1.0",
   "description": "Auto-generate and maintain a raw knowledge layer for LLMs",
-  "keywords": ["llm", "ai", "knowledge", "codebase", "context", "claude", "opencode"],
+  "keywords": [
+    "llm",
+    "ai",
+    "knowledge",
+    "codebase",
+    "context",
+    "claude",
+    "opencode"
+  ],
   "author": "LLMAtlas",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/llm-atlas.git"
+    "url": "git+https://github.com/acrticsludge/LLMAtlas.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/llm-atlas/issues"
+    "url": "https://github.com/acrticsludge/LLMAtlas/issues"
   },
-  "homepage": "https://github.com/your-org/llm-atlas#readme",
+  "homepage": "https://github.com/acrticsludge/LLMAtlas#readme",
   "bin": {
     "llm-atlas": "./bin/llm-atlas.js"
   },
@@ -20,7 +28,10 @@
   "engines": {
     "node": ">=18"
   },
-  "files": ["bin/", "dist/"],
+  "files": [
+    "bin/",
+    "dist/"
+  ],
   "publishConfig": {
     "access": "public"
   },
