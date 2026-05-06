@@ -1,0 +1,100 @@
+# ============================================================
+# .gitignore
+# ============================================================
+
+# ── Secrets & environment ───────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── OpenCode ────────────────────────────────────────────────
+# mcp.jsonc is safe to commit once env vars are used
+
+# ── Next.js ─────────────────────────────────────────────────
+.next/
+out/
+build/
+dist/
+
+# ── Node ────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# ── TypeScript ──────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Supabase ────────────────────────────────────────────────
+supabase/.branches/
+supabase/.temp/
+
+# ── Vercel ──────────────────────────────────────────────────
+.vercel/
+
+# ── Railway ─────────────────────────────────────────────────
+.railway/
+
+# ── Testing ─────────────────────────────────────────────────
+/coverage/
+/playwright-report/
+/test-results/
+/blob-report/
+playwright/.cache/
+
+# ── OS ──────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Desktop.ini
+
+# ── Editor ──────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# ── Logs & debug ────────────────────────────────────────────
+logs/
+*.log
+.cache/
+tmp/
+temp/
+
+# ── Misc ────────────────────────────────────────────────────
+*.tgz
+*.tar.gz
+.turbo/
+.wrangler/
+.open-next/
+
+# ── Knowledge base & generated ──────────────────────────────
+/me
+/graphify-out
+/andrej-karpathy-skills-main
+
+# ── Audits ──────────────────────────────────────────────────
+# Keep audit reports locally, don't commit (can contain sensitive info)
+# Uncomment below if you want to commit audits:
+# !Audits/
