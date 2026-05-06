@@ -124,18 +124,21 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
-      # Need to run from root so setup-node's .npmrc is found,
-      # but operate on the cli/ package
       - name: Install dependencies
-        run: npm ci --prefix cli
+        working-directory: cli
+        run: npm ci
 
       - name: Build
-        run: npm run build --prefix cli
+        working-directory: cli
+        run: npm run build
+
+      - name: Set npm auth token
+        working-directory: cli
+        run: npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
-        run: npm publish --prefix cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        working-directory: cli
+        run: npm publish
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
