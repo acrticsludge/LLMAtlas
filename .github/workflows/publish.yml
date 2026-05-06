@@ -113,9 +113,6 @@ jobs:
       startsWith(github.ref, 'refs/tags/v')
     needs: test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: cli
 
     steps:
       - uses: actions/checkout@v4
@@ -127,11 +124,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: cli/package-lock.json
 
-      - run: npm ci
-      - run: npm run build
+      # Need to run from root so setup-node's .npmrc is found,
+      # but operate on the cli/ package
+      - name: Install dependencies
+        run: npm ci --prefix cli
+
+      - name: Build
+        run: npm run build --prefix cli
 
       - name: Publish to npm
-        run: npm publish
+        run: npm publish --prefix cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
