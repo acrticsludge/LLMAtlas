@@ -56,11 +56,40 @@ Edit `.raw/config.json`:
 
 **Cursor / Windsurf:** LLMAtlas appends to `.cursorrules` and `.windsurfrules` automatically.
 
+## Releasing
+
+```bash
+# Bump version, tag, and push (GitHub Action auto-publishes to npm)
+npm run release:patch   # 0.1.0 → 0.1.1
+npm run release:minor   # 0.1.0 → 0.2.0
+npm run release:major   # 0.1.0 → 1.0.0
+```
+
+Each release command:
+1. Bumps version in `package.json`
+2. Commits with message `chore: release v<version>`
+3. Creates a git tag `v<version>`
+4. Pushes commit and tag
+
+When a `v*` tag is pushed, the GitHub Action (`.github/workflows/publish.yml`):
+- Runs tests on the tag
+- Builds the package
+- Publishes to npm (`@llm-atlas/cli`)
+- Creates a GitHub Release with auto-generated notes
+
+**Required GitHub secrets:**
+- `NPM_TOKEN` — npm automation token with publish permissions
+
+**Required setup:**
+1. Create the `@llm-atlas` org on npm: `npm org create @llm-atlas`
+2. Generate an npm automation token and add it as `NPM_TOKEN` in GitHub repo secrets
+3. Update the `repository` URL in `package.json` to match your GitHub repo
+
 ## Requirements
 
 - Node.js ≥ 18
 - Git
-- API key for an LLM provider (DeepSeek, OpenAI, Anthropic)
+- API key for an LLM provider (DeepSeek, OpenAI)
 
 Set your API key: `export LLMATLAS_API_KEY=sk-...`
 

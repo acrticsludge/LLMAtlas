@@ -10,6 +10,18 @@
 
 **Design doc:** `docs/superpowers/specs/2026-05-06-llm-atlas-design.md`
 
+## Execution Rules
+
+### Periodic Commits (Required)
+
+Each task **must** produce at least one commit. Do NOT batch multiple tasks into a single commit.
+
+- After Step 4 of each task (implementation + test + verify): **commit immediately**
+- If a task has 5+ steps or spans multiple files: commit after each logical checkpoint (test passes → commit)
+- This enables clean rollback, per-task review, and clear git history
+
+Exception: If a step is purely mechanical (e.g., creating a single config file), it can share the commit with the following verification step.
+
 ---
 
 ## File Map

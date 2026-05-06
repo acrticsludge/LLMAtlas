@@ -2,6 +2,17 @@
   "name": "@llm-atlas/cli",
   "version": "0.1.0",
   "description": "Auto-generate and maintain a raw knowledge layer for LLMs",
+  "keywords": ["llm", "ai", "knowledge", "codebase", "context", "claude", "opencode"],
+  "author": "LLMAtlas",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/llm-atlas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/llm-atlas/issues"
+  },
+  "homepage": "https://github.com/your-org/llm-atlas#readme",
   "bin": {
     "llm-atlas": "./bin/llm-atlas.js"
   },
@@ -10,12 +21,21 @@
     "node": ">=18"
   },
   "files": ["bin/", "dist/"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
     "dev": "tsc --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm test",
+    "version": "git add -A",
+    "postversion": "git push && git push --tags",
+    "release:patch": "npm version patch -m 'chore: release v%s'",
+    "release:minor": "npm version minor -m 'chore: release v%s'",
+    "release:major": "npm version major -m 'chore: release v%s'"
   },
   "dependencies": {
     "commander": "^12.0.0",
@@ -26,6 +46,5 @@
     "typescript": "^5.4.0",
     "@types/node": "^20.0.0",
     "vitest": "^1.6.0"
-  },
-  "license": "MIT"
+  }
 }
