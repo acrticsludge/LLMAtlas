@@ -95,6 +95,5 @@ temp/
 /andrej-karpathy-skills-main
 
 # ── Audits ──────────────────────────────────────────────────
-# Keep audit reports locally, don't commit (can contain sensitive info)
-# Uncomment below if you want to commit audits:
-# !Audits/
+# Audit files can contain sensitive info — keep local
+/audits/
