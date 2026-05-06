@@ -44,9 +44,9 @@
     "prepublishOnly": "npm test",
     "version": "git add -A",
     "postversion": "git push && git push --tags",
-    "release:patch": "npm version patch -m 'chore: release v%s'",
-    "release:minor": "npm version minor -m 'chore: release v%s'",
-    "release:major": "npm version major -m 'chore: release v%s'"
+    "release:patch": "npm version patch -m \"chore: release v%s\"",
+    "release:minor": "npm version minor -m \"chore: release v%s\"",
+    "release:major": "npm version major -m \"chore: release v%s\""
   },
   "dependencies": {
     "commander": "^12.0.0",
