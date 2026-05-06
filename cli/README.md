@@ -1,97 +1,97 @@
-# LLMAtlas — Knowledge Layer for LLMs
+# LLMAtlas 🗺️
 
-Auto-generate and maintain a structured `raw/` knowledge layer for your codebase. LLMs (Claude, GPT, DeepSeek, etc.) read these summaries instead of raw source files — saving tokens and providing better context.
+**Pre-digested codebase context for LLMs. No more feeding your AI raw source files every session.**
 
-## Core Principle
+LLMAtlas auto-generates and maintains a `raw/` knowledge layer that maps your entire codebase — module by module, file by file. Your AI tools (Claude Code, OpenCode, Cursor, any LLM) read these summaries instead of raw source, saving tokens and delivering better answers faster.
 
-> raw/ files must be MORE token-efficient than the source code they represent.
+```
+Before: AI reads 50 source files to answer one question   →  ~50k tokens
+After:  AI reads raw/ summaries instead                   →  ~800 tokens
+```
 
-## Quick Start
+## One command
 
 ```bash
 npx @llm-atlas/cli init
 ```
 
-This single command:
-- Scans your project and discovers modules
-- Generates `raw/` with structured markdown summaries
-- Sets up `.rawignore` (defaults to `.gitignore`)
-- Installs a post-commit git hook for auto-regeneration
-- Configures OpenCode MCP and skill files
+That's it. It scans your project, generates the knowledge layer, installs auto-updates on every commit.
+
+## How it works
+
+```
+Every commit ──▶ post-commit hook scans git diff
+                      │
+                only changed modules
+                      │
+                LLM updates their raw/ summaries
+                      │
+                AI reads raw/ instead of source
+```
+
+| Component            | What it does                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| **Scanner**          | Walks your project tree, respects `.rawignore`, discovers modules at any depth      |
+| **LLM Client**       | Sends source to your configured LLM (your key, your model) — OpenAI, DeepSeek, etc. |
+| **Writer**           | Produces dense markdown in `raw/`, mirroring your source structure                  |
+| **MCP Server**       | Exposes 4 tools (list, read, search, regen) for Claude Code / OpenCode integration  |
+| **Post-commit hook** | Auto-regenerates only changed modules — non-blocking, runs in background            |
+
+## The core principle
+
+> raw/ files must be MORE token-efficient than the source code they represent.
+> If an LLM spends more tokens reading the summary than the source, the tool has failed.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `llm-atlas init` | Initialize LLMAtlas in the current project |
-| `llm-atlas regen` | Fast regeneration (changed modules only) |
-| `llm-atlas regen --full` | Full regeneration of all modules |
-| `llm-atlas status` | Show module staleness |
-| `llm-atlas install hooks` | Install git hooks |
-| `llm-atlas install claude-mcp` | Show Claude Code MCP setup |
-| `llm-atlas uninstall` | Remove all LLMAtlas files |
+| Command                  | What it does                               |
+| ------------------------ | ------------------------------------------ |
+| `llm-atlas init`         | Initialize LLMAtlas in the current project |
+| `llm-atlas regen`        | Fast regen — only changed modules          |
+| `llm-atlas regen --full` | Full regen — all modules from scratch      |
+| `llm-atlas status`       | Show which modules are fresh vs stale      |
+| `llm-atlas uninstall`    | Remove LLMAtlas completely                 |
 
-## How It Works
+## Platform support
 
-1. **Scanner** walks your project tree, respecting `.rawignore`, and discovers source modules
-2. **LLM Client** sends source code to your configured LLM (uses your API key)
-3. **Writer** produces dense markdown summaries in `raw/`, mirroring your source structure
-4. **Post-commit hook** automatically regenerates only changed modules
-
-The `raw/` folder is committed to git, so your entire team (and their AI tools) benefit from the knowledge layer.
-
-## Configuration
-
-Edit `.rawignore` to exclude files from knowledge generation (defaults to your `.gitignore`).
-
-Edit `.raw/config.json`:
-- `tokenBudget` — max tokens per module summary (default: 800)
-- `stalenessDays` — days before a module is marked stale (default: 7)
-
-## AI Platform Integration
-
-**OpenCode:** Automatically configured by `init`. Adds MCP server and skill file.
-
-**Claude Code:** Run `llm-atlas install claude-mcp` for setup instructions.
-
-**Cursor / Windsurf:** LLMAtlas appends to `.cursorrules` and `.windsurfrules` automatically.
-
-## Releasing
-
-```bash
-# Bump version, tag, and push (GitHub Action auto-publishes to npm)
-npm run release patch    # 0.1.0 → 0.1.1
-npm run release minor    # 0.1.0 → 0.2.0
-npm run release major    # 0.1.0 → 1.0.0
-```
-
-The release script:
-1. Bumps version in `package.json`
-2. Commits with `chore: release v<version>`
-3. Creates git tag `v<version>`
-4. Pushes commit + tags to origin
-
-When a `v*` tag is pushed, the GitHub Action (`.github/workflows/publish.yml`):
-- Runs tests on the tag
-- Builds the package
-- Publishes to npm (`@llm-atlas/cli`)
-- Creates a GitHub Release with auto-generated notes
-
-**Required GitHub secrets:**
-- `NPM_TOKEN` — npm automation token with publish permissions
-
-**Required setup:**
-1. Create the `@llm-atlas` org on npm: `npm org create @llm-atlas`
-2. Generate an npm automation token and add it as `NPM_TOKEN` in GitHub repo secrets
-3. Update the `repository` URL in `package.json` to match your GitHub repo
+| Platform              | Integration                                      | Auto-installed?                           |
+| --------------------- | ------------------------------------------------ | ----------------------------------------- |
+| **OpenCode**          | MCP server + skill file in `.opencode/`          | ✅ Yes                                    |
+| **Claude Code**       | MCP server (manual install) + CLAUDE.md          | 🤖 You run `llm-atlas install claude-mcp` |
+| **Cursor / Windsurf** | `.cursorrules` / `.windsurfrules` appended       | ✅ Yes                                    |
+| **Any LLM**           | raw/ is just markdown — any AI reads it natively | ✅ Yes                                    |
 
 ## Requirements
 
-- Node.js ≥ 18
-- Git
-- API key for an LLM provider (DeepSeek, OpenAI)
+- **Node.js** ≥ 18
+- **Git** (for auto-regeneration on commit)
+- **API key** from an LLM provider (set `LLMATLAS_API_KEY`)
 
-Set your API key: `export LLMATLAS_API_KEY=sk-...`
+## Example
+
+After running `llm-atlas init` on a Next.js project:
+
+```
+raw/
+├── INDEX.md                       # Full module tree with staleness
+├── app.md                         # app/ directory
+├── app/
+│   ├── dashboard.md               # app/dashboard/
+│   └── api/
+│       └── integrations.md        # app/api/integrations/
+├── lib.md                         # lib/
+├── components/
+│   └── ui.md                      # components/ui/
+└── .meta.json                     # Internal state
+```
+
+Each file is a dense, structured summary — tables, not paragraphs. Designed for LLM consumption, not human reading.
+
+## Built for
+
+- **Vibe coders** — stop re-explaining your codebase to your AI every session
+- **Teams** — commit raw/ to git so everyone's AI has shared context
+- **OpenCode / Claude Code users** — MCP integration makes it seamless
 
 ## License
 
