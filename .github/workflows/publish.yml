@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   publish:
@@ -27,7 +26,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: cd cli && npm ci
@@ -38,8 +36,8 @@ jobs:
       - name: Build
         run: cd cli && npm run build
 
-      - name: Setup npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > cli/.npmrc
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
       - name: Publish to npm
         run: cd cli && npm publish
