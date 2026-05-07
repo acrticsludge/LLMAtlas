@@ -1,5 +1,65 @@
 import { loadMeta, saveMeta, updateModuleMeta } from '../writer/meta.js';
+import { writeIndexMd } from '../writer/index.js';
 import { scanProject } from '../scanner/index.js';
+
+/** Required Markdown sections that every module summary must contain */
+const REQUIRED_SECTIONS = [
+  '## Data Flow',
+  '## Key Types & Interfaces',
+  '## Error Handling Patterns',
+  '## Edge Cases & Gotchas',
+];
+
+/** Regex to detect TypeScript exports in source code */
+const EXPORT_PATTERNS = [
+  /export\s+(default\s+)?(interface|type)\s+(\w+)/g,
+  /export\s+(default\s+)?(class|enum)\s+(\w+)/g,
+  /export\s+(default\s+)?(function|const|let|var)\s+(\w+)/g,
+];
+
+/**
+ * Validate that a module summary contains all required sections.
+ * Returns a list of missing sections, or empty array if valid.
+ */
+function validateSummaryContent(content: string): string[] {
+  const missing: string[] = [];
+  for (const section of REQUIRED_SECTIONS) {
+    if (!content.includes(section)) {
+      missing.push(section.replace('## ', ''));
+    }
+  }
+  return missing;
+}
+
+/**
+ * Scan source content for exported TypeScript symbols.
+ * Returns categorized lists of detected exports.
+ */
+function detectExports(content: string): {
+  types: string[];
+  functions: string[];
+  classes: string[];
+} {
+  const types: string[] = [];
+  const functions: string[] = [];
+  const classes: string[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of EXPORT_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(content)) !== null) {
+      const [, , category, name] = match;
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      if (category === 'interface' || category === 'type') types.push(name);
+      else if (category === 'class' || category === 'enum') classes.push(name);
+      else functions.push(name);
+    }
+  }
+
+  return { types, functions, classes };
+}
 
 /** Validates a module name to prevent path traversal */
 function validateModuleName(name: string): void {
@@ -68,7 +128,7 @@ const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'source_read_module',
-    description: 'Read all source files for a module. Returns full file contents for the AI to analyze and generate a summary.',
+    description: 'Read all source files for a module. Returns full file contents plus pre-detected exports (types, functions, classes) for the AI to use when generating summaries.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -79,7 +139,7 @@ const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'raw_save_module',
-    description: 'Save a generated summary to raw/. Call this AFTER generating a summary from source_read_module output.',
+    description: 'Save a generated summary to raw/. Validates that required sections (Data Flow, Key Types & Interfaces, Error Handling Patterns, Edge Cases & Gotchas) are present. Rejects incomplete summaries with an error listing what is missing. Regenerates INDEX.md after saving.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -308,6 +368,7 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
 
       const files: Array<{ path: string; content: string }> = [];
       let totalChars = 0;
+      let allContent = '';
 
       for (const file of mod.files) {
         const fullPath = join(projectRoot, file.relativePath);
@@ -319,7 +380,11 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         }
         files.push({ path: file.relativePath, content });
         totalChars += content.length;
+        allContent += content + '\n';
       }
+
+      // Detect exported types, functions, and classes across all source files
+      const exports = detectExports(allContent);
 
       return {
         module: mod.id,
@@ -327,6 +392,7 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         fileCount: mod.files.length,
         files,
         totalChars,
+        exports,
       };
     }
 
@@ -337,6 +403,15 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       }
       if (!content || typeof content !== 'string') {
         throw new Error('content is required');
+      }
+
+      // Validate content has all required sections
+      const missingSections = validateSummaryContent(content);
+      if (missingSections.length > 0) {
+        throw new Error(
+          `Summary is missing required sections: ${missingSections.join(', ')}. ` +
+          `Every module summary must include: ${REQUIRED_SECTIONS.map(s => s.replace('## ', '')).join(', ')}.`
+        );
       }
 
       const scan = await scanProject(projectRoot);
@@ -355,6 +430,9 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       const meta = await loadMeta(projectRoot);
       updateModuleMeta(meta, moduleName, mod.files.map((f) => f.relativePath), moduleName);
       await saveMeta(projectRoot, meta);
+
+      // Regenerate INDEX.md so it reflects the new/updated summary
+      await writeIndexMd(projectRoot, scan.modules, meta);
 
       return {
         status: 'saved',
