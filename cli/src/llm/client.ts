@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 
 export interface LlmMessage {
   role: 'system' | 'user' | 'assistant';
@@ -12,6 +13,8 @@ export interface LlmConfig {
   model: string;
   /** Human-readable provider name for warnings (e.g. "DeepSeek (via OpenCode)", "Anthropic") */
   source: string;
+  /** How to call the LLM: 'api' for HTTP, 'claude-cli' for subprocess */
+  mode: 'api' | 'claude-cli';
 }
 
 export interface LlmResponse {
@@ -97,6 +100,7 @@ export function detectLlmConfig(): LlmConfig {
       baseUrl: process.env.LLMATLAS_BASE_URL ?? 'https://api.deepseek.com',
       model: process.env.LLMATLAS_MODEL ?? 'deepseek-chat',
       source: 'LLMATLAS_API_KEY (explicit)',
+      mode: 'api',
     };
   }
 
@@ -112,6 +116,7 @@ export function detectLlmConfig(): LlmConfig {
         baseUrl,
         model: openCodeConfig.model,
         source: `${openCodeConfig.provider} (via OpenCode config)`,
+        mode: 'api',
       };
     }
   }
@@ -123,6 +128,7 @@ export function detectLlmConfig(): LlmConfig {
       baseUrl: 'https://api.anthropic.com/v1',
       model: 'claude-sonnet-4-20250514',
       source: 'Anthropic (env: ANTHROPIC_API_KEY)',
+      mode: 'api',
     };
   }
 
@@ -132,6 +138,7 @@ export function detectLlmConfig(): LlmConfig {
       baseUrl: process.env.LLMATLAS_BASE_URL ?? 'https://api.deepseek.com',
       model: process.env.LLMATLAS_MODEL ?? 'deepseek-chat',
       source: 'DeepSeek (env: DEEPSEEK_API_KEY)',
+      mode: 'api',
     };
   }
 
@@ -141,19 +148,34 @@ export function detectLlmConfig(): LlmConfig {
       baseUrl: process.env.LLMATLAS_BASE_URL ?? 'https://api.openai.com/v1',
       model: process.env.LLMATLAS_MODEL ?? 'gpt-4o-mini',
       source: 'OpenAI (env: OPENAI_API_KEY)',
+      mode: 'api',
     };
+  }
+
+  // ── 4. Claude CLI (Claude Pro users — no API key needed) ──
+  try {
+    execSync('claude --version', { stdio: 'pipe', timeout: 5000 });
+    return {
+      apiKey: '',
+      baseUrl: '',
+      model: 'claude-sonnet-4-20250514',
+      source: 'Claude CLI (Pro subscription)',
+      mode: 'claude-cli',
+    };
+  } catch {
+    // claude CLI not available
   }
 
   throw new Error(
     'No API key found.\n' +
-    '  • Run this in your project directory with one of these set:\n' +
-    '    - DEEPSEEK_API_KEY     (if you use DeepSeek via OpenCode)\n' +
-    '    - ANTHROPIC_API_KEY    (if you use Claude)\n' +
-    '    - OPENAI_API_KEY       (if you use OpenAI)\n' +
+    '  • Set one of these env vars:\n' +
     '    - LLMATLAS_API_KEY     (explicit override)\n' +
+    '    - DEEPSEEK_API_KEY     (if you use DeepSeek)\n' +
+    '    - ANTHROPIC_API_KEY    (if you have an API key)\n' +
+    '    - OPENAI_API_KEY       (if you use OpenAI)\n' +
     '  • Or create a .env file in your project with one of the above.\n' +
-    '  • If you already have a key set in OpenCode, add it to a .env file:\n' +
-    '    echo DEEPSEEK_API_KEY=sk-your-key >> .env'
+    '  • Or install the Claude CLI (Pro users) — it will be auto-detected.\n' +
+    '    Install: https://docs.anthropic.com/en/docs/claude-code/overview'
   );
 }
 
@@ -225,6 +247,11 @@ export async function chatComplete(
   config: LlmConfig,
   options?: { maxTokens?: number; signal?: AbortSignal }
 ): Promise<LlmResponse> {
+  // Claude CLI subprocess mode (for Pro users without API keys)
+  if (config.mode === 'claude-cli') {
+    return chatCompleteClaudeCli(messages, config, options);
+  }
+
   const isAnthropic = config.baseUrl.includes('anthropic.com');
 
   if (isAnthropic) {
@@ -328,6 +355,43 @@ async function chatCompleteAnthropic(
       promptTokens: data.usage.input_tokens,
       completionTokens: data.usage.output_tokens,
       totalTokens: data.usage.input_tokens + data.usage.output_tokens,
+    },
+  };
+}
+
+/**
+ * Send a chat completion via the Claude CLI subprocess.
+ * This lets Claude Pro users generate summaries without an API key.
+ * It runs `claude -p "prompt"` and captures the output.
+ */
+async function chatCompleteClaudeCli(
+  messages: LlmMessage[],
+  _config: LlmConfig,
+  _options?: { maxTokens?: number; signal?: AbortSignal }
+): Promise<LlmResponse> {
+  // Combine messages into a single prompt
+  const systemMessages = messages.filter(m => m.role === 'system').map(m => m.content);
+  const userMessages = messages.filter(m => m.role === 'user').map(m => m.content);
+  const fullPrompt = [...systemMessages, ...userMessages].join('\n\n');
+
+  const result = execSync('claude -p', {
+    input: fullPrompt,
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    timeout: 120000, // 2 min timeout for generation
+    maxBuffer: 10 * 1024 * 1024, // 10MB
+  });
+
+  const content = result.trim();
+  const tokenEstimate = Math.ceil(content.length / 4);
+
+  return {
+    content,
+    model: 'claude-sonnet-4-20250514',
+    usage: {
+      promptTokens: Math.ceil(fullPrompt.length / 4),
+      completionTokens: tokenEstimate,
+      totalTokens: Math.ceil(fullPrompt.length / 4) + tokenEstimate,
     },
   };
 }
