@@ -1,79 +1,118 @@
-# LLMAtlas 🗺️
+# LLMAtlas
 
-**Pre-digested codebase context for LLMs. No more feeding your AI raw source files every session.**
+**Pre-digested codebase context for AI agents. No API keys. No config. Your AI does the work.**
 
-LLMAtlas auto-generates and maintains a `raw/` knowledge layer that maps your entire codebase — module by module, file by file. Your AI tools (Claude Code, OpenCode, Cursor, any LLM) read these summaries instead of raw source, saving tokens and delivering better answers faster.
+LLMAtlas generates and maintains a `raw/` knowledge layer that maps your entire codebase — module by module. Your AI agent reads these summaries instead of raw source files, saving tokens and delivering answers faster.
 
 ```
 Before: AI reads 50 source files to answer one question   →  ~50k tokens
 After:  AI reads raw/ summaries instead                   →  ~800 tokens
 ```
 
-## One command
+---
+
+## Quick Start
 
 ```bash
-npx @llm-atlas/cli init
+npx @llm-atlas/cli@latest init --force
 ```
 
-That's it. It scans your project, generates the knowledge layer, installs auto-updates on every commit.
+Then paste this into your AI agent:
 
-## How it works
+> Run `raw_list_modules` to find all modules. For each module, call `source_read_module` to read source, then use `raw_save_module` to save a full summary — every section populated with real analysis.
+
+The AI agent reads your source, analyzes it, and writes structured summaries. **No API keys, no env vars, no setup.**
+
+---
+
+## How It Works
+
+LLMAtlas provides an MCP server with tools that let your AI agent read source files and save structured summaries. The agent's own intelligence does the analysis — no external LLM calls, no API keys.
 
 ```
-Every commit ──▶ post-commit hook scans git diff
-                      │
-                only changed modules
-                      │
-                LLM updates their raw/ summaries
-                      │
-                AI reads raw/ instead of source
+Install ──▶ AI agent session starts
+                │
+           raw_list_modules → find what needs summaries
+                │
+           source_read_module → read source files
+                │
+           Agent analyzes and generates summary
+                │
+           raw_save_module → save to raw/ with validation
+                │
+           INDEX.md regenerated automatically
 ```
 
-| Component            | What it does                                                                        |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| **Scanner**          | Walks your project tree, respects `.rawignore`, discovers modules at any depth      |
-| **LLM Client**       | Sends source to your configured LLM (your key, your model) — OpenAI, DeepSeek, etc. |
-| **Writer**           | Produces dense markdown in `raw/`, mirroring your source structure                  |
-| **MCP Server**       | Exposes 4 tools (list, read, search, regen) for Claude Code / OpenCode integration  |
-| **Post-commit hook** | Auto-regenerates only changed modules — non-blocking, runs in background            |
+## MCP Tools
 
-## The core principle
+| Tool | Purpose |
+|------|---------|
+| `raw_list_modules` | List modules with status (fresh/stale/new) |
+| `raw_read_module` | Read existing summary from `raw/` |
+| `raw_search` | Full-text search across all summaries |
+| `source_read_module` | Read source files + pre-detected exports (types, functions, classes) |
+| `raw_save_module` | Save summary to `raw/`. Validates required sections. Regenerates INDEX.md. |
 
-> raw/ files must be MORE token-efficient than the source code they represent.
-> If an LLM spends more tokens reading the summary than the source, the tool has failed.
+## Summary Format
+
+Every module summary follows this template. All sections are required:
+
+```markdown
+# Module: <name>
+
+**Purpose:** What this module does and why it exists
+**Source:** <relative path>
+
+## Key Files
+| Path | Purpose | Key Exports |
+
+## Data Flow
+How data moves through the module — inputs, processing, outputs
+
+## Key Types & Interfaces
+Important types with their roles and fields
+
+## Error Handling Patterns
+How errors are caught, logged, and handled
+
+## Edge Cases & Gotchas
+Surprising behavior, race conditions, config quirks
+```
 
 ## Commands
 
-| Command                  | What it does                               |
-| ------------------------ | ------------------------------------------ |
-| `llm-atlas init`         | Initialize LLMAtlas in the current project |
-| `llm-atlas regen`        | Fast regen — only changed modules          |
-| `llm-atlas regen --full` | Full regen — all modules from scratch      |
-| `llm-atlas status`       | Show which modules are fresh vs stale      |
-| `llm-atlas uninstall`    | Remove LLMAtlas completely                 |
+| Command | What it does |
+|---------|-------------|
+| `llm-atlas init` | Initialize LLMAtlas (config, skill file, MCP) |
+| `llm-atlas init --force` | Re-initialize, cleaning old files |
+| `llm-atlas regen` | Check module state (generation is done by AI agent via MCP) |
+| `llm-atlas status` | Show which modules are fresh vs stale vs new |
+| `llm-atlas mcp` | Start the MCP server for AI tool integration |
+| `llm-atlas uninstall` | Remove LLMAtlas completely |
 
-## Platform support
+## Platform Support
 
-| Platform              | Integration                                      | Auto-installed?                           |
-| --------------------- | ------------------------------------------------ | ----------------------------------------- |
-| **OpenCode**          | MCP server + skill file in `.opencode/`          | ✅ Yes                                    |
-| **Claude Code**       | MCP server (manual install) + CLAUDE.md          | 🤖 You run `llm-atlas install claude-mcp` |
-| **Cursor / Windsurf** | `.cursorrules` / `.windsurfrules` appended       | ✅ Yes                                    |
-| **Any LLM**           | raw/ is just markdown — any AI reads it natively | ✅ Yes                                    |
+| Platform | Integration |
+|----------|------------|
+| **OpenCode** | MCP server + skill file auto-configured in `.opencode/` |
+| **Claude Code** | MCP server + `CLAUDE.md` reference. Add to Claude Code MCP config manually. |
+| **Cursor / Windsurf** | Read `raw/` folder directly or configure MCP server |
+| **Any AI agent** | `raw/` is just markdown — any agent reads it natively |
 
 ## Requirements
 
 - **Node.js** ≥ 18
-- **Git** (for auto-regeneration on commit)
-- **API key** from an LLM provider (set `LLMATLAS_API_KEY`)
+- **An AI agent** (Claude Code, OpenCode, Cursor, etc.)
+
+**No API keys required.** The AI agent you already have does all the work.
 
 ## Example
 
-After running `llm-atlas init` on a Next.js project:
+After setup:
 
 ```
 raw/
-├── INDEX.md                       # Full module tree with staleness
+├── INDEX.md                       # Module tree with freshness status
 ├── app.md                         # app/ directory
 ├── app/
 │   ├── dashboard.md               # app/dashboard/
@@ -82,16 +121,20 @@ raw/
 ├── lib.md                         # lib/
 ├── components/
 │   └── ui.md                      # components/ui/
-└── .meta.json                     # Internal state
+└── .meta.json                     # Internal state (freshness tracking)
 ```
 
-Each file is a dense, structured summary — tables, not paragraphs. Designed for LLM consumption, not human reading.
+## Session Prompt
 
-## Built for
+When opening a project with LLMAtlas in a new AI agent session, paste this:
 
-- **Vibe coders** — stop re-explaining your codebase to your AI every session
-- **Teams** — commit raw/ to git so everyone's AI has shared context
-- **OpenCode / Claude Code users** — MCP integration makes it seamless
+> Run `npx @llm-atlas/cli@latest init --force` in this project. Then call `raw_list_modules` to find all modules. For each module, call `source_read_module` to read the source code, then `raw_save_module` to save a full semantic summary. Use the skill file in `.opencode/skills/llm-atlas.md` for the exact format — every section (Purpose, Data Flow, Key Types, Error Handling, Edge Cases) must be populated with real analysis, not just file listings.
+
+## Built For
+
+- **Vibe coders** — no API keys, no config, your AI does the work
+- **Teams** — commit `raw/` to git so everyone's AI has shared context
+- **OpenCode / Claude Code users** — MCP tools make it seamless
 
 ## License
 
