@@ -57,6 +57,21 @@ export async function initCommand(projectRoot: string, options: { force?: boolea
   const moduleCount = scanResult.modules.length;
   console.log(`  ✓ Scanned project: ${moduleCount} modules found`);
 
+  // Create raw/ directory with placeholder INDEX.md
+  await mkdir(rawDir, { recursive: true });
+  const indexPath = join(rawDir, 'INDEX.md');
+  if (!existsSync(indexPath) || options.force) {
+    const indexContent = `# LLMAtlas Index
+
+**Modules discovered:** ${moduleCount}
+
+Ask your AI agent to generate module summaries using the MCP tools.
+Each module will appear here once generated.
+`;
+    await writeFile(indexPath, indexContent, 'utf-8');
+  }
+  console.log('  ✓ Created raw/ directory');
+
   // Install git hook
   await installGitHook(projectRoot);
   console.log('  ✓ Installed post-commit git hook');

@@ -49,6 +49,16 @@ if (oldVersion === newVersion) {
   process.exit(0);
 }
 
+// Run tests before releasing
+console.log(`\n  Running tests...\n`);
+try {
+  execSync(`npm test`, { stdio: 'inherit', cwd: projectRoot });
+} catch (err) {
+  console.error(`  ✗ Tests failed. Aborting release.`);
+  process.exit(1);
+}
+console.log(`  ✓ All tests passed\n`);
+
 // Commit, tag, push
 const steps = [
   `git add -A`,
