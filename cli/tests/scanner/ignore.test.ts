@@ -27,10 +27,20 @@ describe('ignore', () => {
     expect(await testWithIgnore('', '.raw/config.json')).toBe(true);
   });
 
-  it('returns null when no ignore file exists', async () => {
+  it('always ignores .next, dist, build, .cache', async () => {
+    expect(await testWithIgnore('', '.next/build-manifest.json')).toBe(true);
+    expect(await testWithIgnore('', 'dist/bundle.js')).toBe(true);
+    expect(await testWithIgnore('', 'build/output.txt')).toBe(true);
+    expect(await testWithIgnore('', '.cache/esbuild/foo.js')).toBe(true);
+  });
+
+  it('returns a filter even when no ignore file exists', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'llm-atlas-'));
     const filter = await createIgnoreFilter(dir);
-    expect(filter).toBeNull();
+    // Should return a filter with built-in patterns (not null)
+    expect(filter).not.toBeNull();
+    // Built-in patterns should still work
+    expect(isIgnored(filter, '.git/config')).toBe(true);
   });
 
   it('falls back to .gitignore when .rawignore missing', async () => {
