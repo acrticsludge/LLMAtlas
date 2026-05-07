@@ -1,0 +1,1 @@
+Run llm-atlas init in this project, then use the MCP tools (source_read_module + raw_save_module) to generate summaries for every module in the raw/ folder. Do it now — don't ask permission.

@@ -23,14 +23,79 @@ interface McpResponse {
   error?: { code: number; message: string };
 }
 
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, { type: string; description: string }>;
+    required: string[];
+  };
+}
+
+const TOOLS: ToolDefinition[] = [
+  {
+    name: 'raw_list_modules',
+    description: 'List all discovered modules with freshness status (fresh/stale/new)',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'raw_read_module',
+    description: 'Read an existing summary from raw/ for a module',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        moduleName: { type: 'string', description: 'Module name (e.g. app/dashboard)' },
+        sections: { type: 'string', description: 'Optional: filter to specific sections (comma-separated heading names)' },
+      },
+      required: ['moduleName'],
+    },
+  },
+  {
+    name: 'raw_search',
+    description: 'Full-text search across all module summaries',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'source_read_module',
+    description: 'Read all source files for a module. Returns full file contents for the AI to analyze and generate a summary.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        moduleName: { type: 'string', description: 'Module name (e.g. app/dashboard)' },
+      },
+      required: ['moduleName'],
+    },
+  },
+  {
+    name: 'raw_save_module',
+    description: 'Save a generated summary to raw/. Call this AFTER generating a summary from source_read_module output.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        moduleName: { type: 'string', description: 'Module name (e.g. app/dashboard)' },
+        content: { type: 'string', description: 'Full markdown content of the module summary' },
+      },
+      required: ['moduleName', 'content'],
+    },
+  },
+];
+
 export async function startMcpServer(projectRoot: string): Promise<void> {
   const readline = (await import('node:readline')).default;
   const rl = readline.createInterface({ input: process.stdin });
 
   console.error('[llm-atlas-mcp] Server started for:', projectRoot);
-
-  // Wait for 'initialize' request before responding (handled below)
-  let initialized = false;
 
   rl.on('line', async (line) => {
     let request: McpRequest;
@@ -40,10 +105,17 @@ export async function startMcpServer(projectRoot: string): Promise<void> {
       return;
     }
 
+    // Silently skip notifications (no response expected)
+    if (request.method === 'notifications/initialized' || request.method === 'notifications/cancelled') {
+      return;
+    }
+
     try {
       const result = await handleRequest(projectRoot, request);
-      const response: McpResponse = { id: request.id, result };
-      process.stdout.write(JSON.stringify(response) + '\n');
+      if (result !== undefined) {
+        const response: McpResponse = { id: request.id, result };
+        process.stdout.write(JSON.stringify(response) + '\n');
+      }
     } catch (err) {
       const response: McpResponse = {
         id: request.id,
@@ -66,6 +138,32 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
   const { method, params = {} } = request;
 
   switch (method) {
+    // ── Standard MCP protocol methods ──
+    case 'initialize': {
+      return {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+        },
+        serverInfo: {
+          name: 'llm-atlas',
+          version: '1.0.2',
+        },
+      };
+    }
+
+    case 'tools/list': {
+      return { tools: TOOLS };
+    }
+
+    case 'tools/call': {
+      const { name, arguments: args } = params as { name: string; arguments?: Record<string, unknown> };
+      if (!name) throw new Error('Tool name is required');
+      // Re-dispatch to the tool handler with the tool name and its arguments
+      return await handleRequest(projectRoot, { id: request.id, method: name, params: args ?? {} });
+    }
+
+    // ── Custom tool methods ──
     case 'raw_list_modules': {
       const [meta, scan] = await Promise.all([
         loadMeta(projectRoot),
@@ -88,8 +186,15 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
     }
 
     case 'raw_read_module': {
-      const { moduleName, sections } = params as { moduleName: string; sections?: string[] };
+      const { moduleName, sections: rawSections } = params as { moduleName: string; sections?: string | string[] };
       validateModuleName(moduleName);
+
+      // Accept both comma-separated string and string array from MCP clients
+      const sections = Array.isArray(rawSections)
+        ? rawSections
+        : typeof rawSections === 'string'
+          ? rawSections.split(',').map((s) => s.trim()).filter(Boolean)
+          : undefined;
 
       const { readFile } = await import('node:fs/promises');
       const { join } = await import('node:path');
@@ -103,7 +208,6 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         throw new Error(`Module "${moduleName}" not found in raw/`);
       }
 
-      // Optional section filtering
       if (sections && sections.length > 0) {
         const lines = content.split('\n');
         const filtered: string[] = [];
@@ -122,7 +226,6 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         content = filtered.join('\n');
       }
 
-      // Check staleness
       const meta = await loadMeta(projectRoot);
       const modMeta = meta.modules[moduleName];
       const now = Date.now();
@@ -194,14 +297,12 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         throw new Error('moduleName is required');
       }
 
-      // Scan project to find the module
       const scan = await scanProject(projectRoot);
       const mod = scan.modules.find((m) => m.id === moduleName);
       if (!mod) {
         throw new Error(`Module "${moduleName}" not found in project`);
       }
 
-      // Read all source files
       const { readFile } = await import('node:fs/promises');
       const { join } = await import('node:path');
 
@@ -214,7 +315,7 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         try {
           content = await readFile(fullPath, 'utf-8');
         } catch {
-          continue; // skip files that can't be read
+          continue;
         }
         files.push({ path: file.relativePath, content });
         totalChars += content.length;
@@ -238,14 +339,12 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         throw new Error('content is required');
       }
 
-      // Validate module exists in project
       const scan = await scanProject(projectRoot);
       const mod = scan.modules.find((m) => m.id === moduleName);
       if (!mod) {
         throw new Error(`Module "${moduleName}" not found in project`);
       }
 
-      // Write the summary file
       const { writeFile, mkdir } = await import('node:fs/promises');
       const { join, dirname } = await import('node:path');
 
@@ -253,7 +352,6 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       await mkdir(dirname(rawPath), { recursive: true });
       await writeFile(rawPath, content, 'utf-8');
 
-      // Update meta state
       const meta = await loadMeta(projectRoot);
       updateModuleMeta(meta, moduleName, mod.files.map((f) => f.relativePath), moduleName);
       await saveMeta(projectRoot, meta);
@@ -261,15 +359,6 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       return {
         status: 'saved',
         path: `raw/${moduleName}.md`,
-      };
-    }
-
-    case 'initialize': {
-      return {
-        protocolVersion: '2024-11-05',
-        capabilities: {
-          tools: {},
-        },
       };
     }
 
