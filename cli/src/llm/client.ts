@@ -45,9 +45,39 @@ export function warnBeforeCall(config: LlmConfig): void {
 }
 
 /**
+ * Simple .env file loader — reads KEY=VALUE lines from .env files
+ * without requiring the dotenv npm package.
+ */
+function tryLoadDotenv(filePath: string): void {
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let value = trimmed.slice(eqIdx + 1).trim();
+      // Strip surrounding quotes
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      // Only set if not already set (env vars take priority)
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  } catch {
+    // File doesn't exist or can't be read — ignore
+  }
+}
+
+/**
  * Detect LLM configuration from the user's environment.
  *
  * Detection order:
+ *   0. .env files are loaded if present (project .env and .opencode/.env)
  *   1. LLMATLAS_API_KEY env var (explicit override)
  *   2. OpenCode config (.opencode/opencode.json) → reads provider + env var reference
  *   3. Common env vars: ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY
@@ -56,6 +86,10 @@ export function warnBeforeCall(config: LlmConfig): void {
  * use the correct API format automatically.
  */
 export function detectLlmConfig(): LlmConfig {
+  // ── 0. Load .env files ───────────────────────────────────
+  tryLoadDotenv(join(process.cwd(), '.env'));
+  tryLoadDotenv(join(process.cwd(), '.opencode', '.env'));
+
   // ── 1. Explicit override ────────────────────────────────
   if (process.env.LLMATLAS_API_KEY) {
     return {
@@ -112,9 +146,14 @@ export function detectLlmConfig(): LlmConfig {
 
   throw new Error(
     'No API key found.\n' +
-    '  • Set LLMATLAS_API_KEY to use a specific provider\n' +
-    '  • Or configure OpenCode with a provider that has an API key\n' +
-    '  • Or set one of: ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY'
+    '  • Run this in your project directory with one of these set:\n' +
+    '    - DEEPSEEK_API_KEY     (if you use DeepSeek via OpenCode)\n' +
+    '    - ANTHROPIC_API_KEY    (if you use Claude)\n' +
+    '    - OPENAI_API_KEY       (if you use OpenAI)\n' +
+    '    - LLMATLAS_API_KEY     (explicit override)\n' +
+    '  • Or create a .env file in your project with one of the above.\n' +
+    '  • If you already have a key set in OpenCode, add it to a .env file:\n' +
+    '    echo DEEPSEEK_API_KEY=sk-your-key >> .env'
   );
 }
 
@@ -122,12 +161,14 @@ export function detectLlmConfig(): LlmConfig {
  * Try to read OpenCode's config to detect the user's AI provider.
  */
 function tryReadOpenCodeConfig(): { provider: string; model: string; baseUrl?: string; apiKeyEnvVar: string } | null {
+  const cwd = process.cwd();
   const paths: string[] = [];
 
-  // Check project-level .opencode/opencode.json
-  const cwd = process.cwd();
+  // Check project-level .opencode/opencode.json (or .opencode.old.json)
   const projectConfig = join(cwd, '.opencode', 'opencode.json');
   if (existsSync(projectConfig)) paths.push(projectConfig);
+  const oldConfig = join(cwd, '.opencode', 'opencode.old.json');
+  if (existsSync(oldConfig)) paths.push(oldConfig);
 
   // Check user-level config
   const userConfig = join(process.env.HOME || process.env.USERPROFILE || '', '.config', 'opencode', 'opencode.json');
