@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { scanProject } from '../scanner/index.js';
 import { computeDiff } from '../scanner/diff.js';
-import { detectLlmConfig, chatComplete } from '../llm/client.js';
+import { detectLlmConfig, chatComplete, warnBeforeCall } from '../llm/client.js';
 import type { LlmMessage } from '../llm/client.js';
 import { systemPrompt } from '../llm/prompts.js';
 import { loadMeta, saveMeta, updateModuleMeta } from '../writer/meta.js';
@@ -82,6 +82,9 @@ export async function runGeneration(
     }
     return report;
   }
+
+  // Warn user before first LLM call
+  warnBeforeCall(llmConfig);
 
   // 5. Generate for each module
   for (const mod of modulesToGen) {
