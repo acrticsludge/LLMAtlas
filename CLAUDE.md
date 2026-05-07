@@ -214,6 +214,37 @@ Full details: `.opencode/skills/practices.md`
 - **Multi-AI sync:** Update CLAUDE.md, AGENTS.md, .cursorrules, .windsurfrules, GEMINI.md together
 - **Never commit:** `.env*` files, private keys, `/node_modules`, build artifacts, `/graphify-out`
 
+### npm Release Flow
+
+When releasing `@llm-atlas/cli` to npm:
+
+1. **Bump version** in `cli/package.json`:
+   ```bash
+   cd cli && npm version patch|minor|major
+   ```
+   This creates a git tag automatically.
+
+2. **Push commits and tag:**
+   ```bash
+   git push origin main --follow-tags
+   ```
+
+3. **Create release on GitHub:**
+   - Go to [Releases](https://github.com/acrticsludge/LLMAtlas/releases)
+   - Click "Draft a new release"
+   - Select the tag you just pushed
+   - Add changelog summary and click "Publish release"
+
+4. **GitHub Actions auto-publishes:**
+   - Workflow triggers on `release: [published]`
+   - Runs lint, test, build, then publishes to npm
+   - Uses GitHub OIDC (no npm token needed)
+
+**Before releasing, verify locally:**
+```bash
+cd cli && npm run lint && npm test && npm run build && npm pack --dry-run
+```
+
 Full details: `.opencode/skills/practices.md`
 
 ---
