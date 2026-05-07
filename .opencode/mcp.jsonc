@@ -92,6 +92,14 @@
       "type": "local",
       "command": ["npx", "claude-mem", "mcp-server"],
       "enabled": true
+    },
+
+    // ── LLMAtlas ─────────────────────────────────────────────────────────────
+    // Uses local build. Change to npx @llm-atlas/cli once v1.0.3 is published.
+    "llm-atlas": {
+      "type": "local",
+      "command": ["node", "C:\\Anubhav\\Web Dev Projects\\LLMAtlas\\cli\\dist\\index.js", "mcp"],
+      "enabled": true
     }
 
   }

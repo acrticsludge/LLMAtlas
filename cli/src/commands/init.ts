@@ -229,9 +229,19 @@ Stale entries marked ⚠️ — verify against source before relying on them.
   await appendFile(claudePath, appendix, 'utf-8');
 }
 
+/**
+ * Strip single-line and multi-line comments from JSONC.
+ * Simple regex-based; doesn't handle edge cases like // in strings.
+ */
+function stripJsoncComments(text: string): string {
+  return text
+    .replace(/\/\/.*$/gm, '')   // single-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ''); // multi-line comments
+}
+
 export async function installOpenCodeMcp(projectRoot: string): Promise<void> {
   const mcpPath = join(projectRoot, '.opencode', 'mcp.jsonc');
-  const mcpConfig = {
+  const mcpEntry = {
     'llm-atlas': {
       type: 'local',
       command: ['npx', '@llm-atlas/cli', 'mcp'],
@@ -239,13 +249,19 @@ export async function installOpenCodeMcp(projectRoot: string): Promise<void> {
     },
   };
 
+  // Try to add to existing config (preserving comments via original format)
   try {
-    const existing = JSON.parse(await readFile(mcpPath, 'utf-8'));
+    const raw = await readFile(mcpPath, 'utf-8');
+    const clean = stripJsoncComments(raw);
+    const existing = JSON.parse(clean);
     if (!existing['llm-atlas']) {
-      existing['llm-atlas'] = mcpConfig['llm-atlas'];
+      existing['llm-atlas'] = mcpEntry['llm-atlas'];
+      // Write back as formatted JSON (comments stripped — acceptable tradeoff)
       await writeFile(mcpPath, JSON.stringify(existing, null, 2), 'utf-8');
     }
   } catch {
-    await writeFile(mcpPath, JSON.stringify(mcpConfig, null, 2), 'utf-8');
+    // No existing config or parse error — write a minimal JSONC with comment
+    const content = `// LLMAtlas MCP server — provides source_read_module + raw_save_module\n${JSON.stringify(mcpEntry, null, 2)}\n`;
+    await writeFile(mcpPath, content, 'utf-8');
   }
 }

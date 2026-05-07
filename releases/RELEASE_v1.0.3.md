@@ -9,6 +9,7 @@
 - **`sections` param fixed** — `raw_read_module` now accepts both comma-separated strings and string arrays from MCP clients.
 - **`init --force` cleans up properly** — Old `raw/` and `.raw/` directories are removed before re-initializing. Init state detection checks both directories.
 - **MCP server info** — `initialize` response now includes `serverInfo` with name and version.
+- **JSONC config parsing fixed** — `installOpenCodeMcp` no longer breaks on `.opencode/mcp.jsonc` files with comments. Strips comments before parsing so existing MCP entries are preserved.
 
 ### 🧹 Chores
 
