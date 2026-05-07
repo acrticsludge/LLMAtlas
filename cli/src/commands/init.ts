@@ -2,7 +2,6 @@ import { writeFile, mkdir, readFile, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanProject } from '../scanner/index.js';
-import { runGeneration } from '../engine/index.js';
 
 export async function initCommand(projectRoot: string, options: { force?: boolean }): Promise<void> {
   console.log('\n  ╔════════════════════════════════════════════╗');
@@ -12,7 +11,7 @@ export async function initCommand(projectRoot: string, options: { force?: boolea
   const rawDir = join(projectRoot, 'raw');
   if (existsSync(rawDir) && !options.force) {
     console.log('  ✓ LLMAtlas already initialized in this project.');
-    console.log('  • Run `llm-atlas regen --full` to regenerate');
+    console.log('  • Ask your AI agent to generate/update module summaries');
     console.log('  • Run `llm-atlas init --force` to reinitialize\n');
     return;
   }
@@ -58,29 +57,6 @@ export async function initCommand(projectRoot: string, options: { force?: boolea
   const moduleCount = scanResult.modules.length;
   console.log(`  ✓ Scanned project: ${moduleCount} modules found`);
 
-  if (moduleCount > 0) {
-    console.log('');
-    for (const mod of scanResult.modules.slice(0, 10)) {
-      console.log(`     📁 ${mod.id}/ (${mod.files.length} files)`);
-    }
-    if (scanResult.modules.length > 10) {
-      console.log(`     ... and ${scanResult.modules.length - 10} more`);
-    }
-    console.log('');
-  }
-
-  // Generate raw/ files (first full generation)
-  console.log('  Generating knowledge layer...');
-  const report = await runGeneration(projectRoot, { mode: 'full' });
-  console.log(`  ✓ Generated ${report.generated.length} module files`);
-
-  if (report.errors.length > 0) {
-    console.log(`  ⚠ ${report.errors.length} modules had errors`);
-    for (const err of report.errors) {
-      console.log(`     Error: ${err.moduleId}: ${err.error}`);
-    }
-  }
-
   // Install git hook
   await installGitHook(projectRoot);
   console.log('  ✓ Installed post-commit git hook');
@@ -100,11 +76,11 @@ export async function initCommand(projectRoot: string, options: { force?: boolea
   console.log('');
   console.log('  ──────────────────────────────────────────────');
   console.log('  Next steps:');
-  console.log('  1. Review raw/INDEX.md for a module overview');
-  console.log('  2. Edit .rawignore to exclude more files if needed');
-  console.log('  3. Run `llm-atlas regen --full` for deep analysis');
-  console.log('  4. To enable Claude Code MCP:');
-  console.log('     llm-atlas install claude-mcp');
+  console.log('  1. Open this project with your AI agent (Claude Code, OpenCode, etc.)');
+  console.log('  2. The AI agent will automatically detect the LLMAtlas skill');
+  console.log('  3. Ask your agent: "Generate module summaries"');
+  console.log('  4. The agent will read your source code and write summaries using MCP tools');
+  console.log('  5. No API keys needed -- your agent does all the work');
   console.log('  ──────────────────────────────────────────────\n');
 }
 
@@ -143,19 +119,66 @@ export async function installOpenCodeSkill(projectRoot: string): Promise<void> {
 
   const skillContent = `# Skill: LLMAtlas Knowledge Layer
 
-This project has a \`raw/\` folder with structured summaries of each module.
+This project has a \`raw/\` folder with structured Markdown summaries of each code module.
+As the AI assistant, YOU generate and maintain these summaries using the MCP tools --
+no external API key is needed.
 
-## Usage
-1. BEFORE reading source code in a module, check \`raw/<module>.md\` first.
-2. Check the **Status:** field for staleness warnings.
-3. INDEX.md at \`raw/INDEX.md\` gives an overview of all modules.
+## MCP Tools Available
 
-## Regeneration
-- Run \`llm-atlas regen --full\` in terminal for full regeneration.
-- The post-commit hook regenerates changed modules automatically.
+| Tool | What it does |
+|------|-------------|
+| \`raw_list_modules\` | List all modules with status (fresh/stale/new) |
+| \`raw_read_module\` | Read an existing summary from \`raw/\` |
+| \`raw_search\` | Full-text search across all summaries |
+| \`source_read_module\` | Read the actual source files for a module |
+| \`raw_save_module\` | Save a generated summary to \`raw/\` |
 
-## Staleness
-If a file shows ⚠️ Stale, verify the info against source before relying on it.
+## Before Generating Summaries
+
+Warn the user first: "I will analyze your source code and generate structured module summaries. This consumes AI tokens (roughly X tokens per module). Continue?"
+
+Only proceed after the user confirms. If the project has many modules (>10), mention the estimate and ask again.
+
+## Summary Format (follow exactly)
+
+When generating a summary, use this Markdown template:
+
+\`\`\`markdown
+# Module: <module-name>
+
+**Purpose:** <one-line description of what this module does>
+**Source:** <relative path from project root>
+
+## Key Files
+| Path | Purpose | Key Exports |
+|------|---------|-------------|
+| src/file.ts | Handles X | Y, Z |
+
+## Data Flow
+<how data moves through this module -- inputs, processing, outputs>
+
+## Key Types & Interfaces
+<important types, interfaces, and their roles>
+
+## Error Handling Patterns
+<how errors are caught, logged, and handled>
+
+## Edge Cases & Gotchas
+<surprising behavior, edge cases, configuration quirks>
+\`\`\`
+
+Keep summaries dense -- aim for ~800 tokens or less. Focus on what another developer (or AI) needs to understand the module quickly.
+
+## Workflow for Generating All Module Summaries
+
+1. Call \`raw_list_modules\` to see current state
+2. For each module that is "new" or "stale":
+   a. Call \`source_read_module\` with the module name to get source code
+   b. Analyze the source and generate a summary in the format above
+   c. Call \`raw_save_module\` with the module name and generated content
+3. After all modules are done, tell the user summaries are ready at \`raw/INDEX.md\`
+
+For "fresh" modules, skip generation -- they don't need updating yet.
 `;
 
   await writeFile(join(skillDir, 'llm-atlas.md'), skillContent, 'utf-8');

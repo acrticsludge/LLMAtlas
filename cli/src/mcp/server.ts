@@ -1,4 +1,4 @@
-import { loadMeta } from '../writer/meta.js';
+import { loadMeta, saveMeta, updateModuleMeta } from '../writer/meta.js';
 import { scanProject } from '../scanner/index.js';
 
 /** Validates a module name to prevent path traversal */
@@ -188,19 +188,79 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       return { results };
     }
 
-    case 'raw_regen': {
-      const { module: _moduleName, full } = params as { module?: string; full?: boolean };
-      const { runGeneration } = await import('../engine/index.js');
+    case 'source_read_module': {
+      const { moduleName } = params as { moduleName: string };
+      if (!moduleName || typeof moduleName !== 'string') {
+        throw new Error('moduleName is required');
+      }
 
-      const report = await runGeneration(projectRoot, {
-        mode: full ? 'full' : 'fast',
-      });
+      // Scan project to find the module
+      const scan = await scanProject(projectRoot);
+      const mod = scan.modules.find((m) => m.id === moduleName);
+      if (!mod) {
+        throw new Error(`Module "${moduleName}" not found in project`);
+      }
+
+      // Read all source files
+      const { readFile } = await import('node:fs/promises');
+      const { join } = await import('node:path');
+
+      const files: Array<{ path: string; content: string }> = [];
+      let totalChars = 0;
+
+      for (const file of mod.files) {
+        const fullPath = join(projectRoot, file.relativePath);
+        let content: string;
+        try {
+          content = await readFile(fullPath, 'utf-8');
+        } catch {
+          continue; // skip files that can't be read
+        }
+        files.push({ path: file.relativePath, content });
+        totalChars += content.length;
+      }
 
       return {
-        status: 'completed',
-        generated: report.generated,
-        errors: report.errors.length > 0 ? report.errors.map((e) => `${e.moduleId}: ${e.error}`) : [],
-        tokenUsage: report.tokenUsage.total,
+        module: mod.id,
+        relativePath: mod.relativePath,
+        fileCount: mod.files.length,
+        files,
+        totalChars,
+      };
+    }
+
+    case 'raw_save_module': {
+      const { moduleName, content } = params as { moduleName: string; content: string };
+      if (!moduleName || typeof moduleName !== 'string') {
+        throw new Error('moduleName is required');
+      }
+      if (!content || typeof content !== 'string') {
+        throw new Error('content is required');
+      }
+
+      // Validate module exists in project
+      const scan = await scanProject(projectRoot);
+      const mod = scan.modules.find((m) => m.id === moduleName);
+      if (!mod) {
+        throw new Error(`Module "${moduleName}" not found in project`);
+      }
+
+      // Write the summary file
+      const { writeFile, mkdir } = await import('node:fs/promises');
+      const { join, dirname } = await import('node:path');
+
+      const rawPath = join(projectRoot, 'raw', moduleName + '.md');
+      await mkdir(dirname(rawPath), { recursive: true });
+      await writeFile(rawPath, content, 'utf-8');
+
+      // Update meta state
+      const meta = await loadMeta(projectRoot);
+      updateModuleMeta(meta, moduleName, mod.files.map((f) => f.relativePath), moduleName);
+      await saveMeta(projectRoot, meta);
+
+      return {
+        status: 'saved',
+        path: `raw/${moduleName}.md`,
       };
     }
 
