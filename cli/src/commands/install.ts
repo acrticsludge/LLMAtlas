@@ -1,7 +1,6 @@
 import { writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { RawMeta } from '../llm/types.js';
 
 /**
  * Install or uninstall LLMAtlas components.

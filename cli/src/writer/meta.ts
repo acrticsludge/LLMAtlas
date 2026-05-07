@@ -1,6 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { RawMeta } from '../llm/types.js';
+import type { RawMeta } from '../scanner/types.js';
 
 const META_FILENAME = '.raw/.meta.json';
 

@@ -81,23 +81,15 @@ describe('LLMAtlas E2E', () => {
     expect(result).toContain('Modules');
   });
 
-  it('regen --full runs without crashing', async () => {
-    // Run with placeholder API key to skip Claude CLI detection
-    // (Claude CLI subprocess hangs in test environments)
-    const env = { ...process.env, LLMATLAS_API_KEY: 'placeholder' };
-    try {
-      const result = execSync(`node ${CLI_PATH} regen --full`, {
-        cwd: testDir,
-        encoding: 'utf-8',
-        timeout: 30000,
-        env,
-      });
-      expect(result).toContain('regeneration');
-    } catch {
-      // Timeout or API error is acceptable — the command ran
-      // (placeholder key will cause API 401 which is caught gracefully)
-      expect(true).toBe(true);
-    }
+  it('regen shows module state', async () => {
+    const result = execSync(`node ${CLI_PATH} regen`, {
+      cwd: testDir,
+      encoding: 'utf-8',
+    });
+    expect(result).toContain('Checking module state');
+    expect(result).toContain('app');
+    expect(result).toContain('lib');
+    expect(result).toContain('components');
   });
 
   afterAll(async () => {

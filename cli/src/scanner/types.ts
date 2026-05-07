@@ -21,10 +21,6 @@ export interface RawConfig {
   version: number;
   tokenBudget: number;
   stalenessDays: number;
-  model: {
-    fast: { provider: string; model: string } | null;
-    full: { provider: string; model: string } | null;
-  };
   modules: {
     include: string[];
     exclude: string[];
@@ -36,7 +32,22 @@ export const DEFAULT_CONFIG: RawConfig = {
   version: 1,
   tokenBudget: 800,
   stalenessDays: 7,
-  model: { fast: null, full: null },
   modules: { include: ['*'], exclude: [] },
   moduleOverrides: {},
 };
+
+export interface ModuleMeta {
+  files: string[];
+  hash: string;
+  lastGen: string;
+  lastCommit: string;
+}
+
+export interface RawMeta {
+  version: number;
+  modules: Record<string, ModuleMeta>;
+  config: {
+    tokenBudget: number;
+    stalenessDays: number;
+  };
+}

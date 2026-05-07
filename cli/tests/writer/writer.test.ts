@@ -34,8 +34,7 @@ describe('meta', () => {
 describe('writeModuleFile', () => {
   it('writes a module file to the correct nested path', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'llm-atlas-'));
-    const meta = await loadMeta(dir);
-    const result = await writeModuleFile(dir, 'app/dashboard', '# Dashboard module', meta);
+    const result = await writeModuleFile(dir, 'app/dashboard', '# Dashboard module');
     expect(posix(result.path)).toContain('raw/app/dashboard.md');
 
     const content = await readFile(join(dir, 'raw', 'app', 'dashboard.md'), 'utf-8');
@@ -44,8 +43,7 @@ describe('writeModuleFile', () => {
 
   it('writes a top-level module file', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'llm-atlas-'));
-    const meta = await loadMeta(dir);
-    const result = await writeModuleFile(dir, 'lib', '# Lib module', meta);
+    const result = await writeModuleFile(dir, 'lib', '# Lib module');
     expect(posix(result.path)).toContain('raw/lib.md');
 
     const content = await readFile(join(dir, 'raw', 'lib.md'), 'utf-8');

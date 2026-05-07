@@ -1,14 +1,11 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import type { SourceModule } from '../scanner/types.js';
-import type { RawMeta } from '../llm/types.js';
-import { truncateModuleToBudget } from '../llm/token-budget.js';
+import type { RawMeta } from '../scanner/types.js';
 
 export interface WriteResult {
   moduleId: string;
   path: string;
-  tokenCount: number;
-  truncated: boolean;
 }
 
 /**
@@ -18,24 +15,12 @@ export interface WriteResult {
 export async function writeModuleFile(
   projectRoot: string,
   moduleId: string,
-  content: string,
-  meta: RawMeta
+  content: string
 ): Promise<WriteResult> {
   const rawPath = join(projectRoot, 'raw', moduleId + '.md');
-
-  const budget = meta.config.tokenBudget;
-  const truncatedContent = truncateModuleToBudget(content, budget);
-  const tokenCount = Math.ceil(truncatedContent.length / 4);
-
   await mkdir(dirname(rawPath), { recursive: true });
-  await writeFile(rawPath, truncatedContent, 'utf-8');
-
-  return {
-    moduleId,
-    path: rawPath,
-    tokenCount,
-    truncated: truncatedContent !== content,
-  };
+  await writeFile(rawPath, content, 'utf-8');
+  return { moduleId, path: rawPath };
 }
 
 /**

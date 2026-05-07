@@ -9,7 +9,7 @@ const program = new Command();
 program
   .name('llm-atlas')
   .description('Auto-generate and maintain a raw/ knowledge layer for LLMs')
-  .version('0.1.0');
+  .version('1.0.2');
 
 program
   .command('init')
@@ -26,11 +26,10 @@ program
 
 program
   .command('regen')
-  .description('Regenerate the raw/ knowledge layer')
-  .option('--full', 'Full regeneration of all modules (default: fast/diff-aware)')
-  .action(async (options) => {
+  .description('Check module state (generation handled by AI agent via MCP)')
+  .action(async () => {
     try {
-      await regenCommand(process.cwd(), options);
+      await regenCommand(process.cwd());
     } catch (err) {
       console.error('Error:', err instanceof Error ? err.message : String(err));
       process.exit(1);
