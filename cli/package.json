@@ -1,6 +1,6 @@
 {
   "name": "@llm-atlas/cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Auto-generate and maintain a raw knowledge layer for LLMs",
   "keywords": [
     "llm",
