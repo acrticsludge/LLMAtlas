@@ -1,0 +1,15 @@
+#!/bin/sh
+# LLMAtlas auto-refresh hook
+# Installed by: llm-atlas init
+# Auto-regenerates stale module summaries before commit
+
+set -e
+
+# Find project root (where .git lives)
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+PROJECT_ROOT=$(dirname "$GIT_DIR")
+
+# Run refresh in hook mode
+npx @llm-atlas/cli@latest refresh --hook
+
+exit 0
