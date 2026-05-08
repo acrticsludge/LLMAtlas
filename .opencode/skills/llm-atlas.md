@@ -11,6 +11,7 @@ When you start a session in this project:
 2. If "new" or "stale" modules exist, warn the user: "I'll analyze the source code and generate module summaries. This consumes AI tokens." Wait for confirmation.
 3. After confirmed, begin generating summaries for each module
 4. After finishing, tell the user the summaries are ready at `raw/INDEX.md`
+5. If module summaries are outdated or you detect source files have changed, call `raw_refresh_stale()` to regenerate all stale modules automatically.
 
 ## MCP Tools
 
@@ -19,6 +20,7 @@ When you start a session in this project:
 | `raw_list_modules` | List modules with status (fresh/stale/new) |
 | `raw_read_module` | Read existing summary from `raw/` |
 | `raw_search` | Search across all summaries |
+| `raw_refresh_stale()` | Regenerate all stale module summaries automatically |
 | `source_read_module` | Read full source code for a module |
 | `raw_save_module` | Save a generated summary to `raw/` |
 
