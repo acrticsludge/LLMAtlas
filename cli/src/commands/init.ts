@@ -102,6 +102,10 @@ Each module will appear here once generated.
   await installOpenCodeMcp(projectRoot);
   console.log('  ✓ Configured OpenCode MCP');
 
+  // Install root .mcp.json for broader MCP host support (Cursor, Windsurf, Claude Desktop, etc.)
+  await installRootMcpJson(projectRoot);
+  console.log('  ✓ Configured .mcp.json for MCP hosts');
+
   // Install pre-commit hook
   const hookSourcePath = join(
     import.meta.dirname ?? '.',
@@ -332,4 +336,47 @@ export async function installOpenCodeMcp(projectRoot: string): Promise<void> {
   }
 
   await writeFile(mcpPath, output, 'utf-8');
+}
+
+/**
+ * Install llm-atlas entry in root `.mcp.json` (standard MCP config used by
+ * Claude Desktop, Cursor, Windsurf, and other MCP hosts).
+ *
+ * Format:
+ * ```json
+ * {
+ *   "mcpServers": {
+ *     "llm-atlas": {
+ *       "command": "npx",
+ *       "args": ["@llm-atlas/cli", "mcp"]
+ *     }
+ *   }
+ * }
+ * ```
+ */
+export async function installRootMcpJson(projectRoot: string): Promise<void> {
+  const mcpPath = join(projectRoot, '.mcp.json');
+
+  const entry = {
+    command: 'npx',
+    args: ['@llm-atlas/cli', 'mcp'],
+  };
+
+  let existing: Record<string, unknown> = {};
+  try {
+    const raw = await readFile(mcpPath, 'utf-8');
+    existing = JSON.parse(raw);
+  } catch {
+    // File doesn't exist or invalid JSON — start fresh
+    existing = { mcpServers: {} };
+  }
+
+  // Ensure mcpServers section exists
+  const servers = (existing.mcpServers ?? {}) as Record<string, unknown>;
+  existing.mcpServers = servers;
+
+  // Add or update llm-atlas entry
+  servers['llm-atlas'] = entry;
+
+  await writeFile(mcpPath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
 }
