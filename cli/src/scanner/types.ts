@@ -38,7 +38,8 @@ export const DEFAULT_CONFIG: RawConfig = {
 
 export interface ModuleMeta {
   files: string[];
-  hash: string;
+  hash: string;           // Current content hash (keep for compatibility)
+  fileHash: string;       // NEW: SHA-256 of source files (for staleness detection)
   lastGen: string;
   lastCommit: string;
 }
@@ -49,5 +50,6 @@ export interface RawMeta {
   config: {
     tokenBudget: number;
     stalenessDays: number;
+    hashUpdateThreshold?: number;  // NEW: Days before time-based staleness kicks in
   };
 }
