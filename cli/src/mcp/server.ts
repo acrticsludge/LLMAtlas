@@ -1,6 +1,7 @@
 import { loadMeta, saveMeta, updateModuleMeta } from '../writer/meta.js';
 import { writeIndexMd } from '../writer/index.js';
 import { scanProject } from '../scanner/index.js';
+import { handleRawRefreshStale } from './tools/refresh.js';
 
 /** Required Markdown sections that every module summary must contain */
 const REQUIRED_SECTIONS = [
@@ -147,6 +148,15 @@ const TOOLS: ToolDefinition[] = [
         content: { type: 'string', description: 'Full markdown content of the module summary' },
       },
       required: ['moduleName', 'content'],
+    },
+  },
+  {
+    name: 'raw_refresh_stale',
+    description: 'Auto-detect and regenerate all stale modules. Returns list of refreshed/skipped modules.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
     },
   },
 ];
@@ -437,6 +447,15 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       return {
         status: 'saved',
         path: `raw/${moduleName}.md`,
+      };
+    }
+
+    case 'raw_refresh_stale': {
+      const result = await handleRawRefreshStale(projectRoot);
+      return {
+        refreshed: result.refreshed,
+        skipped: result.skipped,
+        failed: result.failed,
       };
     }
 
