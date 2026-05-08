@@ -187,13 +187,26 @@ When you start a session in this project:
 
 ## MCP Tools
 
-| Tool | Purpose |
-|------|---------|
-| \`raw_list_modules\` | List modules with status (fresh/stale/new) |
-| \`raw_read_module\` | Read existing summary from \`raw/\` |
-| \`raw_search\` | Search across all summaries |
-| \`source_read_module\` | Read full source code for a module |
-| \`raw_save_module\` | Save a generated summary to \`raw/\` |
+| Tool | Params | Purpose |
+|------|--------|---------|
+| \`raw_list_modules\` | _(none)_ | List modules with status (fresh/stale/new) |
+| \`raw_read_module\` | \`moduleName\` (or \`module\`), \`sections?\` | Read existing summary from \`raw/\` |
+| \`raw_search\` | \`query\` | Search across all summaries |
+| \`source_read_module\` | \`moduleName\` (or \`module\`) | Read full source code for a module |
+| \`raw_save_module\` | \`moduleName\` (or \`module\`), \`content\` | Save a generated summary to \`raw/\`. Validates required sections. |
+| \`raw_refresh_stale()\` | _(none)_ | Regenerate all stale module summaries |
+| \`raw_generate_all\` | \`filter?\` ("all" | "stale") | Read source for ALL modules at once |
+
+> **Alias:** All tools that accept \`moduleName\` also accept \`module\`.
+
+### Required Sections (validated by \`raw_save_module\`)
+
+| Section | Required for |
+|---------|-------------|
+| \`## Data Flow\` | Source modules only (test/spec exempt) |
+| \`## Key Types & Interfaces\` | All modules |
+| \`## Error Handling Patterns\` | All modules |
+| \`## Edge Cases & Gotchas\` | All modules |
 
 ## Summary Format
 
@@ -228,10 +241,17 @@ Configuration quirks, race conditions, performance cliffs, implicit assumptions,
 ## Per-Model Workflow
 
 For each module needing generation:
-1. Call \`source_read_module\` with the module name -- returns ALL source files
+1. Call \`source_read_module\` with \`moduleName\` -- returns ALL source files
 2. Read and analyze the source code thoroughly
 3. Write a dense, semantic summary using the format above
-4. Call \`raw_save_module\` with the module name and the generated markdown
+4. Call \`raw_save_module\` with \`moduleName\` and the generated markdown
+
+## Batch Workflow
+
+For fresh projects or mass regeneration:
+1. Call \`raw_generate_all\` with \`filter: "stale"\` to get all stale/new modules
+2. Process each module in the returned list
+3. Call \`raw_save_module\` for each completed summary
 
 Do NOT write summaries that are just file listings. Each module's purpose, data flow, types, and architecture role are the most important outputs. Be specific -- reference actual function names, type names, and file paths from the source.
 `;
@@ -256,38 +276,60 @@ Stale entries marked ⚠️ — verify against source before relying on them.
 }
 
 /**
- * Strip single-line and multi-line comments from JSONC.
- * Simple regex-based; doesn't handle edge cases like // in strings.
+ * Parse JSONC (JSON with comments) into a plain object.
+ * Handles single-line // and multi-line /* * / comments.
+ * Does NOT handle // in strings (rare edge case).
  */
-function stripJsoncComments(text: string): string {
-  return text
-    .replace(/\/\/.*$/gm, '')   // single-line comments
+function parseJsonc(text: string): Record<string, unknown> {
+  const stripped = text
+    .replace(/\/\/.*$/gm, '')       // single-line comments
     .replace(/\/\*[\s\S]*?\*\//g, ''); // multi-line comments
+  return JSON.parse(stripped);
 }
 
 export async function installOpenCodeMcp(projectRoot: string): Promise<void> {
-  const mcpPath = join(projectRoot, '.opencode', 'mcp.jsonc');
-  const mcpEntry = {
-    'llm-atlas': {
+  const mcpDir = join(projectRoot, '.opencode');
+  const mcpPath = join(mcpDir, 'mcp.jsonc');
+
+  await mkdir(mcpDir, { recursive: true });
+
+  // Read existing config or start fresh
+  let existing: Record<string, unknown> = {};
+  let hadExisting = false;
+  try {
+    const raw = await readFile(mcpPath, 'utf-8');
+    existing = parseJsonc(raw);
+    hadExisting = true;
+  } catch {
+    // No existing config or parse error — start fresh with supergroups
+    existing = {
+      $schema: 'https://opencode.ai/config.json',
+      mcp: {},
+    };
+  }
+
+  // Ensure mcp section exists
+  const mcp = existing.mcp as Record<string, unknown> ?? {};
+  existing.mcp = mcp;
+
+  // Add llm-atlas entry if missing
+  if (!(mcp['llm-atlas'] as Record<string, unknown>)) {
+    mcp['llm-atlas'] = {
       type: 'local',
       command: ['npx', '@llm-atlas/cli', 'mcp'],
       enabled: true,
-    },
-  };
-
-  // Try to add to existing config (preserving comments via original format)
-  try {
-    const raw = await readFile(mcpPath, 'utf-8');
-    const clean = stripJsoncComments(raw);
-    const existing = JSON.parse(clean);
-    if (!existing['llm-atlas']) {
-      existing['llm-atlas'] = mcpEntry['llm-atlas'];
-      // Write back as formatted JSON (comments stripped — acceptable tradeoff)
-      await writeFile(mcpPath, JSON.stringify(existing, null, 2), 'utf-8');
-    }
-  } catch {
-    // No existing config or parse error — write a minimal JSONC with comment
-    const content = `// LLMAtlas MCP server — provides source_read_module + raw_save_module\n${JSON.stringify(mcpEntry, null, 2)}\n`;
-    await writeFile(mcpPath, content, 'utf-8');
+    };
   }
+
+  // Write back. If we had an existing file, try to preserve its structure
+  // by using JSON.stringify (comments are sacrificed, but structure preserved).
+  // If the file was new, include a helpful header comment.
+  let output: string;
+  if (hadExisting) {
+    output = JSON.stringify(existing, null, 2) + '\n';
+  } else {
+    output = `// LLMAtlas MCP server — provides source_read_module, raw_save_module, raw_generate_all\n${JSON.stringify(existing, null, 2)}\n`;
+  }
+
+  await writeFile(mcpPath, output, 'utf-8');
 }
