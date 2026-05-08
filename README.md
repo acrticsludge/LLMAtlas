@@ -45,13 +45,27 @@ Install ──▶ AI agent session starts
 
 ## MCP Tools
 
-| Tool | Purpose |
-|------|---------|
-| `raw_list_modules` | List modules with status (fresh/stale/new) |
-| `raw_read_module` | Read existing summary from `raw/` |
-| `raw_search` | Full-text search across all summaries |
-| `source_read_module` | Read source files + pre-detected exports (types, functions, classes) |
-| `raw_save_module` | Save summary to `raw/`. Validates required sections. Regenerates INDEX.md. |
+| Tool                 | Purpose                                                                    |
+| -------------------- | -------------------------------------------------------------------------- |
+| `raw_list_modules`   | List modules with status (fresh/stale/new)                                 |
+| `raw_read_module`    | Read existing summary from `raw/`                                          |
+| `raw_search`         | Full-text search across all summaries                                      |
+| `source_read_module` | Read source files + pre-detected exports (types, functions, classes)       |
+| `raw_save_module`    | Save summary to `raw/`. Validates required sections. Regenerates INDEX.md. |
+
+## Auto-Refresh
+
+Module summaries stay fresh automatically:
+
+- **Pre-commit hook** — when you commit, LLMAtlas detects changed source files and regenerates affected summaries automatically.
+- **Manual refresh** — AI agents can call `raw_refresh_stale()` to regenerate all stale modules on demand.
+
+Staleness is determined by:
+
+1. **File hash** — SHA-256 of module's source files. If source changed, module is stale.
+2. **Time-based fallback** — if summaries are > 14 days old, considered stale (safety net).
+
+The hook auto-installs during `llm-atlas init` — no additional setup needed.
 
 ## Summary Format
 
@@ -64,40 +78,47 @@ Every module summary follows this template. All sections are required:
 **Source:** <relative path>
 
 ## Key Files
+
 | Path | Purpose | Key Exports |
 
 ## Data Flow
+
 How data moves through the module — inputs, processing, outputs
 
 ## Key Types & Interfaces
+
 Important types with their roles and fields
 
 ## Error Handling Patterns
+
 How errors are caught, logged, and handled
 
 ## Edge Cases & Gotchas
+
 Surprising behavior, race conditions, config quirks
 ```
 
 ## Commands
 
-| Command | What it does |
-|---------|-------------|
-| `llm-atlas init` | Initialize LLMAtlas (config, skill file, MCP) |
-| `llm-atlas init --force` | Re-initialize, cleaning old files |
-| `llm-atlas regen` | Check module state (generation is done by AI agent via MCP) |
-| `llm-atlas status` | Show which modules are fresh vs stale vs new |
-| `llm-atlas mcp` | Start the MCP server for AI tool integration |
-| `llm-atlas uninstall` | Remove LLMAtlas completely |
+| Command                    | What it does                                                    |
+| -------------------------- | --------------------------------------------------------------- |
+| `llm-atlas init`           | Initialize LLMAtlas (config, skill file, MCP)                   |
+| `llm-atlas init --force`   | Re-initialize, cleaning old files                               |
+| `llm-atlas regen`          | Check module state (generation is done by AI agent via MCP)     |
+| `llm-atlas status`         | Show which modules are fresh vs stale vs new                    |
+| `llm-atlas refresh --hook` | Run from pre-commit hook; detects stale modules and regenerates |
+| `llm-atlas refresh`        | Manually detect and regenerate stale modules (for testing)      |
+| `llm-atlas mcp`            | Start the MCP server for AI tool integration                    |
+| `llm-atlas uninstall`      | Remove LLMAtlas completely                                      |
 
 ## Platform Support
 
-| Platform | Integration |
-|----------|------------|
-| **OpenCode** | MCP server + skill file auto-configured in `.opencode/` |
-| **Claude Code** | MCP server + `CLAUDE.md` reference. Add to Claude Code MCP config manually. |
-| **Cursor / Windsurf** | Read `raw/` folder directly or configure MCP server |
-| **Any AI agent** | `raw/` is just markdown — any agent reads it natively |
+| Platform              | Integration                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| **OpenCode**          | MCP server + skill file auto-configured in `.opencode/`                     |
+| **Claude Code**       | MCP server + `CLAUDE.md` reference. Add to Claude Code MCP config manually. |
+| **Cursor / Windsurf** | Read `raw/` folder directly or configure MCP server                         |
+| **Any AI agent**      | `raw/` is just markdown — any agent reads it natively                       |
 
 ## Requirements
 
