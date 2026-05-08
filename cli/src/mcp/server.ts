@@ -2,6 +2,7 @@ import { loadMeta, saveMeta, updateModuleMeta } from '../writer/meta.js';
 import { writeIndexMd } from '../writer/index.js';
 import { scanProject } from '../scanner/index.js';
 import { handleRawRefreshStale } from './tools/refresh.js';
+import { computeModuleFileHash } from '../utils/hash.js';
 
 /** Required Markdown sections that every module summary must contain */
 const REQUIRED_SECTIONS = [
@@ -438,7 +439,8 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
       await writeFile(rawPath, content, 'utf-8');
 
       const meta = await loadMeta(projectRoot);
-      updateModuleMeta(meta, moduleName, mod.files.map((f) => f.relativePath), moduleName);
+      const fileHash = await computeModuleFileHash(projectRoot, mod);
+      updateModuleMeta(meta, moduleName, mod.files.map((f) => f.relativePath), moduleName, fileHash);
       await saveMeta(projectRoot, meta);
 
       // Regenerate INDEX.md so it reflects the new/updated summary
