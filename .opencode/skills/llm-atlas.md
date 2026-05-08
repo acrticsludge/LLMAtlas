@@ -42,16 +42,25 @@ Generate a summary for EACH module following this template. Every section must b
 | src/types.ts | Type definitions | XInput, XConfig |
 
 ## Data Flow
-How data moves through this module. Trace the path: inputs come from where, what processes them, where output goes. Mention network calls, database queries, event emissions.
+Trace the actual execution path with specific function/method names, API routes, and database table references. Example: "Button click → `handleSubmit()` → `POST /api/alerts` → `alert_configs` table → success toast." Not "calls an API" or "fetches from database" — name the actual functions, routes, and tables involved. Include error paths if they diverge.
 
 ## Key Types & Interfaces
 The most important types/interfaces in this module. For each: name, what it represents, key fields. Focus on what a developer needs to know to use this module.
 
 ## Error Handling Patterns
-How errors are caught, logged, categorized, and surfaced. Any custom error types, middleware, or recovery logic.
+Describe actual error handling mechanisms, NOT UI behavior. Examples: "`testConnection()` wraps Supabase auth in try/catch, sets `connectionError` state, ErrorBoundary catches render failures"; "23505 constraint violation from DB → re-try with backoff"; "AbortController timeout on fetch → user sees 'Took too long' message". Specify: which code paths wrap in try/catch, which error types are caught, how recovery works. Do NOT say "shows error message" or "color codes input red" — that's UI, not error handling.
 
 ## Edge Cases & Gotchas
 Configuration quirks, race conditions, performance cliffs, implicit assumptions, or anything that would surprise a developer reading this code for the first time.
+
+---
+
+## Quality Guidelines
+
+- **Verify before asserting.** Do NOT use hedging language: "Likely error.tsx", "Probably", "Maybe", "might". If a file exists, verify it. If unsure, omit the claim.
+- **Concrete examples over generic prose.** Not "fetches from Supabase" but "`fetchUserAlerts()` queries `user_alerts` table with `user_id` filter".
+- **Trace all paths, especially error paths.** A function that returns early on error deserves explanation. Don't skip edge cases.
+- **Every section must be populated.** Do NOT leave sections as file inventories or one-liners. Each module deserves dense, semantic analysis.
 ```
 
 ## Per-Model Workflow
