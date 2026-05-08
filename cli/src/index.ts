@@ -3,6 +3,7 @@ import { initCommand } from './commands/init.js';
 import { regenCommand } from './commands/regen.js';
 import { statusCommand } from './commands/status.js';
 import { installCommand } from './commands/install.js';
+import { refreshCommand } from './commands/refresh.js';
 
 const program = new Command();
 
@@ -83,6 +84,20 @@ program
       await startMcpServer(process.cwd());
     } catch (err) {
       console.error('MCP server error:', err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('refresh')
+  .description('Refresh module state and regenerate indices')
+  .option('--hook', 'Running from git hook')
+  .action(async (options) => {
+    try {
+      const result = await refreshCommand(process.cwd(), options);
+      process.exit(result.failed.length > 0 ? 1 : 0);
+    } catch (err) {
+      console.error('Error:', err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
