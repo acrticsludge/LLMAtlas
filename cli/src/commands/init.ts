@@ -1,6 +1,7 @@
 import { writeFile, mkdir, readFile, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { execSync } from 'node:child_process';
 import { scanProject } from '../scanner/index.js';
 
 export async function initCommand(projectRoot: string, options: { force?: boolean }): Promise<void> {
@@ -100,6 +101,31 @@ Each module will appear here once generated.
   // Install OpenCode MCP config
   await installOpenCodeMcp(projectRoot);
   console.log('  ✓ Configured OpenCode MCP');
+
+  // Install pre-commit hook
+  const hookSourcePath = join(
+    import.meta.dirname ?? '.',
+    '..',
+    '..',
+    'hooks',
+    'pre-commit.template'
+  );
+  const hookDestPath = join(projectRoot, '.git', 'hooks', 'pre-commit');
+
+  try {
+    const hookContent = await readFile(hookSourcePath, 'utf-8');
+    await mkdir(dirname(hookDestPath), { recursive: true });
+    await writeFile(hookDestPath, hookContent, 'utf-8');
+
+    // Make executable (Unix)
+    if (process.platform !== 'win32') {
+      execSync(`chmod +x "${hookDestPath}"`);
+    }
+
+    console.log('  ✅ Pre-commit hook installed');
+  } catch (err) {
+    console.warn('  ⚠️  Failed to install hook: ' + err);
+  }
 
   console.log('');
   console.log('  ──────────────────────────────────────────────');
