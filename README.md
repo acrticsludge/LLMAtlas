@@ -45,13 +45,30 @@ Install ──▶ AI agent session starts
 
 ## MCP Tools
 
-| Tool                 | Purpose                                                                    |
-| -------------------- | -------------------------------------------------------------------------- |
-| `raw_list_modules`   | List modules with status (fresh/stale/new)                                 |
-| `raw_read_module`    | Read existing summary from `raw/`                                          |
-| `raw_search`         | Full-text search across all summaries                                      |
-| `source_read_module` | Read source files + pre-detected exports (types, functions, classes)       |
-| `raw_save_module`    | Save summary to `raw/`. Validates required sections. Regenerates INDEX.md. |
+All tools accept `moduleName` (canonical) or `module` (alias) for module identification.
+
+| Tool                 | Params                                         | Purpose                                                              |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
+| `raw_list_modules`   | _(none)_                                       | List modules with status (fresh/stale/new)                           |
+| `raw_read_module`    | `moduleName`, `sections?`                      | Read existing summary from `raw/`                                    |
+| `raw_search`         | `query`                                        | Full-text search across all summaries                                |
+| `source_read_module` | `moduleName`                                   | Read source files + pre-detected exports (types, functions, classes) |
+| `raw_save_module`    | `moduleName`, `content`                        | Save summary to `raw/`. Validates sections. Regenerates INDEX.md.    |
+| `raw_refresh_stale()` | _(none)_                                      | Auto-detect and regenerate stale modules                             |
+| `raw_generate_all`   | `filter?` ("all" \| "stale")                   | Read source for ALL modules at once (batch)                          |
+
+### Section Validation
+
+`raw_save_module` requires these sections in every summary:
+
+| Section                          | Required for                          |
+| -------------------------------- | ------------------------------------- |
+| `## Data Flow`                   | Source modules only (not test/spec)   |
+| `## Key Types & Interfaces`      | All modules                           |
+| `## Error Handling Patterns`     | All modules                           |
+| `## Edge Cases & Gotchas`        | All modules                           |
+
+Test/spec modules (paths with "test", "spec", "__tests__") are exempt from Data Flow.
 
 ## Auto-Refresh
 
@@ -59,11 +76,13 @@ Module summaries stay fresh automatically:
 
 - **Pre-commit hook** — when you commit, LLMAtlas detects changed source files and regenerates affected summaries automatically.
 - **Manual refresh** — AI agents can call `raw_refresh_stale()` to regenerate all stale modules on demand.
+- **Batch generation** — AI agents can call `raw_generate_all()` to get all modules' source at once.
 
 Staleness is determined by:
 
 1. **File hash** — SHA-256 of module's source files. If source changed, module is stale.
-2. **Time-based fallback** — if summaries are > 14 days old, considered stale (safety net).
+2. **Summary file existence** — if the `.md` file is missing from `raw/`, module is stale.
+3. **Time-based fallback** — if summaries are > 14 days old, considered stale (safety net).
 
 The hook auto-installs during `llm-atlas init` — no additional setup needed.
 
@@ -149,7 +168,7 @@ raw/
 
 When opening a project with LLMAtlas in a new AI agent session, paste this:
 
-> Run `npx @llm-atlas/cli@latest init --force` in this project. Then call `raw_list_modules` to find all modules. For each module, call `source_read_module` to read the source code, then `raw_save_module` to save a full semantic summary. Use the skill file in `.opencode/skills/llm-atlas.md` for the exact format — every section (Purpose, Data Flow, Key Types, Error Handling, Edge Cases) must be populated with real analysis, not just file listings.
+> Run `npx @llm-atlas/cli@latest init --force` in this project. Then call `raw_generate_all` to batch-read all modules' source, or call `raw_list_modules` then `source_read_module` + `raw_save_module` per module. Use the skill file in `.opencode/skills/llm-atlas.md` for the exact format — every section (Data Flow, Key Types, Error Handling, Edge Cases) must be populated with real analysis, not just file listings.
 
 ## Built For
 
