@@ -249,7 +249,7 @@ async function handleRequest(projectRoot: string, request: McpRequest): Promise<
         },
         serverInfo: {
           name: 'llm-atlas',
-          version: '1.0.2',
+          version: '2.2.0',
         },
       };
     }
